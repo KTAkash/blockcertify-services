@@ -7,30 +7,54 @@ import org.springframework.security.access.expression.method.DefaultMethodSecuri
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 public class SecurityConfig {
+
+    private final JwtAuthFilter jwtAuthFilter;
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(authorize -> {
-                    authorize
-                            .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/webjars/**", "/api-docs/**", "/v3/api-docs/**").permitAll()
-                            .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                            .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                            .anyRequest().permitAll();
-                })
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
+                .authorizeHttpRequests(authorize ->
+                        authorize
+                                .requestMatchers(
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html",
+                                        "/webjars/**",
+                                        "/api-docs/**",
+                                        "/v3/api-docs/**"
+                                ).permitAll()
+                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                                .anyRequest().permitAll()
+                )
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                );
+
         return http.build();
     }
 
     @Bean
     public DefaultMethodSecurityExpressionHandler msecurity() {
-        DefaultMethodSecurityExpressionHandler defaultMethodSecurityExpressionHandler = new DefaultMethodSecurityExpressionHandler();
-        defaultMethodSecurityExpressionHandler.setDefaultRolePrefix("");
-        return defaultMethodSecurityExpressionHandler;
+        DefaultMethodSecurityExpressionHandler handler =
+                new DefaultMethodSecurityExpressionHandler();
+        handler.setDefaultRolePrefix("");
+        return handler;
+    }
+
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

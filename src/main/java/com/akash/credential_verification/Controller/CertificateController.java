@@ -1,9 +1,11 @@
 package com.akash.credential_verification.Controller;
 
 
+import com.akash.credential_verification.Dto.CreateCertificateRequest;
 import com.akash.credential_verification.Model.Certificate;
 import com.akash.credential_verification.Service.CertificateService;
 import com.akash.credential_verification.Service.FabricCertificateService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -19,56 +21,40 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CertificateController {
 
-    private final CertificateService service;
+    private final CertificateService certificateService;
     private final FabricCertificateService fabricCertificateService;
 
-    @PostMapping
-    public ResponseEntity<?> create(@RequestBody Certificate cert) {
-        return ResponseEntity.ok(service.save(cert));
-    }
+    // ─── MongoDB ────────────────────────────────────────────────────────────
 
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> issueFromFile(
-            @RequestPart("file") MultipartFile file,
-            @RequestPart("studentId") String studentId,
-            @RequestPart("issuedBy") String issuedBy
-    ) {
-        try {
-            return ResponseEntity.ok(service.issueFromFile(file, studentId, issuedBy));
-        } catch (IllegalArgumentException exception) {
-            return ResponseEntity.badRequest().body(Map.of("error", exception.getMessage()));
-        } catch (IOException exception) {
-            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to issue certificate"));
-        }
+    @PostMapping
+    public ResponseEntity<?> create(@RequestBody @Valid CreateCertificateRequest request) {
+        return ResponseEntity.ok(certificateService.save(request));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<?> get(@PathVariable String id) {
-        return service.getById(id)
+        return certificateService.getById(id)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    // ─── Blockchain ─────────────────────────────────────────────────────────
+
     @PostMapping("/blockchain")
-    public ResponseEntity<?> createOnBlockchain(@RequestBody Certificate cert) {
+    public ResponseEntity<?> createOnBlockchain(@RequestBody @Valid CreateCertificateRequest request) {
         try {
-            if (cert.getId() == null || cert.getId().isBlank()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "id is required"));
-            }
-
             String certificateId = fabricCertificateService.createCertificate(
-                    cert.getId(),
-                    cert.getStudentId(),
-                    cert.getCid(),
-                    cert.getHash(),
-                    cert.getIssuedBy(),
-                    "VALID",
-                    Instant.now().toString()
+                    request.getCertificateId(),
+                    request.getStudentId(),
+                    request.getCid(),
+                    request.getHash(),
+                    request.getIssuedBy(),
+                    request.getStatus().name(),
+                    request.getIssuedAt()
             );
-
             return ResponseEntity.ok(Map.of("certificateId", certificateId));
-        } catch (Exception exception) {
-            return ResponseEntity.internalServerError().body(Map.of("error", exception.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -76,8 +62,8 @@ public class CertificateController {
     public ResponseEntity<?> getFromBlockchain(@PathVariable String id) {
         try {
             return ResponseEntity.ok(fabricCertificateService.getCertificate(id));
-        } catch (Exception exception) {
-            return ResponseEntity.internalServerError().body(Map.of("error", exception.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -85,8 +71,8 @@ public class CertificateController {
     public ResponseEntity<?> getAllFromBlockchain() {
         try {
             return ResponseEntity.ok(fabricCertificateService.getAllCertificates());
-        } catch (Exception exception) {
-            return ResponseEntity.internalServerError().body(Map.of("error", exception.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -96,10 +82,14 @@ public class CertificateController {
             @RequestBody Map<String, String> request
     ) {
         try {
-            fabricCertificateService.updateCertificateStatus(id, request.get("status"));
-            return ResponseEntity.ok(Map.of("certificateId", id, "status", request.get("status")));
-        } catch (Exception exception) {
-            return ResponseEntity.internalServerError().body(Map.of("error", exception.getMessage()));
+            String status = request.get("status");
+            if (status == null || status.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "status is required"));
+            }
+            fabricCertificateService.updateCertificateStatus(id, status);
+            return ResponseEntity.ok(Map.of("certificateId", id, "status", status));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
 }
