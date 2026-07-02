@@ -1,6 +1,6 @@
 package com.akash.credential_verification.Service;
 
-import com.akash.credential_verification.DTO.FileUploadResponse;
+import com.akash.credential_verification.Dto.FileUploadResponse;
 import com.akash.credential_verification.Model.FileMetadata;
 import com.akash.credential_verification.Repository.FileMetadataRepository;
 import io.ipfs.api.IPFS;
@@ -49,14 +49,14 @@ public class FileService {
         }
 
         String cid = nodes.getFirst().hash.toString();
-        FileMetadata metadata = new FileMetadata();
-        metadata.setCid(cid);
-        metadata.setFileName(fileName);
-        metadata.setContentType(contentType);
-        metadata.setSize(file.getSize());
-        metadata.setHash(hash);
-        metadata.setGatewayUrl(buildGatewayUrl(cid));
-        metadata.setUploadedAt(Instant.now());
+        FileMetadata metadata = FileMetadata.builder()
+                .cid(cid)
+                .fileName(fileName)
+                .contentType(contentType)
+                .size(file.getSize())
+                .hash(hash)
+                .gatewayUrl(buildGatewayUrl(cid))
+                .build();
         fileMetadataRepository.save(metadata);
 
         return toResponse(metadata);

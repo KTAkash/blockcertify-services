@@ -35,11 +35,14 @@ public class SecurityConfig {
                                 ).permitAll()
                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                                .requestMatchers("/api/auth/login", "/api/auth/superadmin/register").permitAll()
+                                .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
+                                .requestMatchers("/api/certificates/blockchain/**").authenticated()
                                 .anyRequest().permitAll()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 );
 
         return http.build();

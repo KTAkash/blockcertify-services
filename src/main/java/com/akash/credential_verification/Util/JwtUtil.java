@@ -24,15 +24,18 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(String universityId, String mspId) {
-        return Jwts.builder()
-                .setSubject(universityId)
-                .claim("mspId", mspId)
-                .claim("role", "UNIVERSITY")
+    public String generateToken(String subject, String mspIdOrRole, String role) {
+        var builder = Jwts.builder()
+                .setSubject(subject)
+                .claim("role", role)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(key())
-                .compact();
+                .setExpiration(new Date(System.currentTimeMillis() + expiration));
+        
+        if ("UNIVERSITY".equals(role)) {
+            builder.claim("mspId", mspIdOrRole);
+        }
+        
+        return builder.signWith(key()).compact();
     }
 
     public Claims extractClaims(String token) {

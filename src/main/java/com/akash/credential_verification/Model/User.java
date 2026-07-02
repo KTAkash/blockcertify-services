@@ -1,5 +1,6 @@
 package com.akash.credential_verification.Model;
 
+import com.akash.credential_verification.Constants.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -10,25 +11,21 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 
-@Document(collection = "universities")
+@Document(collection = "users")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class University {
+public class User {
     @Id
     private String id;
-    private String name;
+
     private String username;
+
     private String passwordHash;
-    private String mspId;
-    private String certPem;
-    private String encryptedPrivateKey;
-    @Builder.Default
-    private boolean active = true;
+
+    private UserRole role; // SUPER_ADMIN, STUDENT
+
     @CreatedDate
     private Instant createdAt;
-    private String peerEndpoint;
-    private String peerTlsCertPem;
-    private String peerHostnameOverride;
 }

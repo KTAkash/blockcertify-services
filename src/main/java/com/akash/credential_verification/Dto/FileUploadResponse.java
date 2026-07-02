@@ -1,4 +1,4 @@
-package com.akash.credential_verification.DTO;
+package com.akash.credential_verification.Dto;
 
 public record FileUploadResponse(
         String cid,

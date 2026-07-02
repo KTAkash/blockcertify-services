@@ -10,4 +10,7 @@ public class RegisterUniversityRequest {
     private String mspId;
     private String certPem;
     private String privateKey;
+    private String peerEndpoint;
+    private String peerTlsCertPem;
+    private String peerHostnameOverride;
 }

@@ -1,7 +1,11 @@
 package com.akash.credential_verification.Configuration;
 
 import com.akash.credential_verification.Model.University;
+import com.akash.credential_verification.Model.UniversityPrincipal;
+import com.akash.credential_verification.Model.User;
+import com.akash.credential_verification.Model.UserPrincipal;
 import com.akash.credential_verification.Repository.UniversityRepository;
+import com.akash.credential_verification.Repository.UserRepository;
 import com.akash.credential_verification.Util.JwtUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
@@ -24,6 +28,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UniversityRepository universityRepo;
+    private final UserRepository userRepo;
 
     @Override
     protected void doFilterInternal(HttpServletRequest req,
@@ -34,12 +39,31 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             try {
                 String token = header.substring(7);
                 Claims claims = jwtUtil.extractClaims(token);
-                String universityId = claims.getSubject();
+                String subject = claims.getSubject();
+                String role = (String) claims.get("role");
 
-                University uni = universityRepo.findById(universityId).orElseThrow();
-                var auth = new UsernamePasswordAuthenticationToken(
-                        uni, null, List.of(new SimpleGrantedAuthority("ROLE_UNIVERSITY")));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                if ("UNIVERSITY".equals(role)) {
+                    University uni = universityRepo.findById(subject).orElseThrow();
+                    var principal = new UniversityPrincipal(
+                            subject,
+                            uni.getMspId(),
+                            uni.getName()
+                    );
+                    var auth = new UsernamePasswordAuthenticationToken(
+                            principal, null, List.of(new SimpleGrantedAuthority("ROLE_UNIVERSITY"))
+                    );
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                } else if ("SUPER_ADMIN".equals(role) || "STUDENT".equals(role)) {
+                    User user = userRepo.findById(subject).orElseThrow();
+                    var principal = new UserPrincipal(
+                            subject,
+                            user.getRole().name()
+                    );
+                    var auth = new UsernamePasswordAuthenticationToken(
+                            principal, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
+                    );
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
             } catch (Exception ignored) {}
         }
         chain.doFilter(req, res);

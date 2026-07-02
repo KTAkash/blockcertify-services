@@ -1,6 +1,6 @@
 package com.akash.credential_verification.Controller;
 
-import com.akash.credential_verification.DTO.FileUploadResponse;
+import com.akash.credential_verification.Dto.FileUploadResponse;
 import com.akash.credential_verification.Service.FileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;

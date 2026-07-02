@@ -33,15 +33,7 @@ public class CreateCertificateRequest {
     @JsonProperty("hash")
     private String hash;
 
-    @NotBlank(message = "Issuer name is required")
-    @JsonProperty("issuedBy")
-    private String issuedBy;
-
     @NotNull(message = "Status is required")   // @NotBlank doesn't work on enums
     @JsonProperty("status")
     private CertificateStatus status;
-
-    @NotBlank(message = "Issued date/time is required")
-    @JsonProperty("issuedAt")
-    private String issuedAt;
 }
