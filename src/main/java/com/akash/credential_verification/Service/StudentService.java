@@ -12,11 +12,18 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class StudentService {
 
+    private static final String STUDENT_ID_PREFIX = "STU-";
+
     private final StudentRepository studentRepository;
 
     public Student create(Student student) {
-        student.setId(null);
+        student.setId(generateStudentId());
         return studentRepository.save(student);
+    }
+
+    private String generateStudentId() {
+        long count = studentRepository.count();
+        return STUDENT_ID_PREFIX + (101 + count);
     }
 
     public List<Student> getAll() {
@@ -33,7 +40,6 @@ public class StudentService {
                     existingStudent.setName(student.getName());
                     existingStudent.setEmail(student.getEmail());
                     existingStudent.setIndexNo(student.getIndexNo());
-                    existingStudent.setAttachment(student.getAttachment());
                     return studentRepository.save(existingStudent);
                 });
     }

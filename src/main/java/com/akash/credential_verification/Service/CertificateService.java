@@ -20,6 +20,7 @@ public class CertificateService {
         Certificate certificate = Certificate.builder()
                 .id(request.getCertificateId())
                 .studentId(request.getStudentId())
+                .CertificateTitle(request.getCertificateTitle())
                 .cid(request.getCid())
                 .hash(request.getHash())
                 .issuedBy(university.getName())

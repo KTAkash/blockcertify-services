@@ -62,7 +62,6 @@ public class AuthController {
                 ));
             }
         }
-
         throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
     }
 

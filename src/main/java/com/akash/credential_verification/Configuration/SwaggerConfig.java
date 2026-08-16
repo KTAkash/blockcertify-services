@@ -1,6 +1,7 @@
 package com.akash.credential_verification.Configuration;
 
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.ExternalDocumentation;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
@@ -12,6 +13,8 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class SwaggerConfig {
+
+    private static final String SECURITY_SCHEME_NAME = "Bearer Authentication";
 
     @Bean
     public OpenAPI credentialOpenAPI() {
@@ -27,6 +30,14 @@ public class SwaggerConfig {
                 )
                 .externalDocs(new ExternalDocumentation()
                         .description("Project Documentation")
-                        .url("https://your-project-docs-url.com"));
+                        .url("https://your-project-docs-url.com"))
+                .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))
+                .components(new Components()
+                        .addSecuritySchemes(SECURITY_SCHEME_NAME,
+                                new SecurityScheme()
+                                        .name(SECURITY_SCHEME_NAME)
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")));
     }
 }

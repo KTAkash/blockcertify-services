@@ -25,6 +25,10 @@ public class CreateCertificateRequest {
     @JsonProperty("studentId")
     private String studentId;
 
+    @NotBlank(message = "Certificate Title is required")
+    @JsonProperty("CertificateTitle")
+    private String CertificateTitle;
+
     @NotBlank(message = "IPFS CID is required")
     @JsonProperty("cid")
     private String cid;
@@ -33,7 +37,7 @@ public class CreateCertificateRequest {
     @JsonProperty("hash")
     private String hash;
 
-    @NotNull(message = "Status is required")   // @NotBlank doesn't work on enums
+    @NotNull(message = "Status is required")
     @JsonProperty("status")
     private CertificateStatus status;
 }
