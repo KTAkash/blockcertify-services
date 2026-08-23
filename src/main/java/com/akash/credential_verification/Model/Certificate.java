@@ -16,7 +16,7 @@ public class Certificate {
     @Id
     private String id;
     private String studentId;
-    private String CertificateTitle;
+    private String certificateTitle;
     private String cid; // IPFS CID
     private String hash; // SHA-256
     private String issuedBy;

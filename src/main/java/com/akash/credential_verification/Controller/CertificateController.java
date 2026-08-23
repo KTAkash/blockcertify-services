@@ -1,10 +1,14 @@
 package com.akash.credential_verification.Controller;
 
 
+import com.akash.credential_verification.Constants.CertificateStatus;
+import com.akash.credential_verification.Dto.BlockchainCertificateRequest;
 import com.akash.credential_verification.Dto.CreateCertificateRequest;
+import com.akash.credential_verification.Dto.UpdateBlockchainStatusRequest;
 import com.akash.credential_verification.Model.Certificate;
 import com.akash.credential_verification.Model.University;
 import com.akash.credential_verification.Model.UniversityPrincipal;
+import com.akash.credential_verification.Model.UserPrincipal;
 import com.akash.credential_verification.Repository.UniversityRepository;
 import com.akash.credential_verification.Service.CertificateService;
 import com.akash.credential_verification.Service.FabricCertificateService;
@@ -19,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/certificates")
@@ -32,9 +37,13 @@ public class CertificateController {
     // ─── MongoDB ────────────────────────────────────────────────────────────
 
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody @Valid CreateCertificateRequest request, @AuthenticationPrincipal UniversityPrincipal principal) {
-        University university = universityRepository.findById(principal.universityId()).orElseThrow();
-        return ResponseEntity.ok(certificateService.save(request, university));
+    public ResponseEntity<?> create(@RequestBody @Valid CreateCertificateRequest request, @AuthenticationPrincipal Object principal) {
+        try {
+            University university = getEffectiveUniversity(null, principal);
+            return ResponseEntity.ok(certificateService.save(request, university));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
     }
 
     @GetMapping("/{id}")
@@ -44,40 +53,65 @@ public class CertificateController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    @GetMapping("/student/{studentId}")
+    public ResponseEntity<?> getByStudent(@PathVariable String studentId) {
+        return ResponseEntity.ok(certificateService.getByStudentId(studentId));
+    }
+
     // ─── Blockchain ─────────────────────────────────────────────────────────
 
     @PostMapping("/blockchain")
-    public ResponseEntity<?> createOnBlockchain(@RequestBody @Valid CreateCertificateRequest request, @AuthenticationPrincipal UniversityPrincipal principal) {
+    public ResponseEntity<?> createOnBlockchain(@RequestBody @Valid BlockchainCertificateRequest request, @AuthenticationPrincipal Object principal) {
         try {
-            String certificateId = fabricCertificateService.createCertificate(
-                    principal.universityId(),
-                    request.getCertificateId(),
+            University university = getEffectiveUniversity(null, principal);
+            String certificateId = request.getCertificateId();
+            if (certificateId == null || certificateId.isBlank()) {
+                certificateId = UUID.randomUUID().toString();
+            }
+            String resultId = fabricCertificateService.createCertificate(
+                    university.getId(),
+                    certificateId,
                     request.getStudentId(),
                     request.getCid(),
                     request.getHash(),
-                    principal.universityName(),
+                    university.getName(),
                     request.getStatus().name(),
                     java.time.Instant.now().toString()
             );
-            return ResponseEntity.ok(Map.of("certificateId", certificateId));
+            return ResponseEntity.ok(Map.of("certificateId", resultId));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
 
     @GetMapping("/blockchain/{id}")
-    public ResponseEntity<?> getFromBlockchain(@PathVariable String id, @AuthenticationPrincipal UniversityPrincipal principal) {
+    public ResponseEntity<?> getFromBlockchain(
+            @PathVariable String id,
+            @RequestParam(required = false) String universityId,
+            @AuthenticationPrincipal Object principal
+    ) {
         try {
-            return ResponseEntity.ok(fabricCertificateService.getCertificate(principal.universityId(), id));
+            University university = getEffectiveUniversity(universityId, principal);
+            return ResponseEntity.ok(fabricCertificateService.getCertificate(university.getId(), id));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
     }
 
     @GetMapping("/blockchain")
-    public ResponseEntity<?> getAllFromBlockchain(@AuthenticationPrincipal UniversityPrincipal principal) {
+    public ResponseEntity<?> getAllFromBlockchain(
+            @RequestParam(required = false) String universityId,
+            @AuthenticationPrincipal Object principal
+    ) {
         try {
-            return ResponseEntity.ok(fabricCertificateService.getAllCertificates(principal.universityId()));
+            University university = getEffectiveUniversity(universityId, principal);
+            return ResponseEntity.ok(fabricCertificateService.getAllCertificates(university.getId()));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
@@ -86,18 +120,42 @@ public class CertificateController {
     @PatchMapping("/blockchain/{id}/status")
     public ResponseEntity<?> updateBlockchainStatus(
             @PathVariable String id,
-            @RequestBody Map<String, String> request,
-            @AuthenticationPrincipal UniversityPrincipal principal
+            @RequestBody @Valid UpdateBlockchainStatusRequest request,
+            @AuthenticationPrincipal Object principal
     ) {
         try {
-            String status = request.get("status");
-            if (status == null || status.isBlank()) {
-                return ResponseEntity.badRequest().body(Map.of("error", "status is required"));
-            }
-            fabricCertificateService.updateCertificateStatus(principal.universityId(), id, status);
-            return ResponseEntity.ok(Map.of("certificateId", id, "status", status));
+            University university = getEffectiveUniversity(request.getUniversityId(), principal);
+            String statusStr = request.getStatus().name();
+            
+            // 1. Update Blockchain
+            fabricCertificateService.updateCertificateStatus(university.getId(), id, statusStr);
+            
+            // 2. Sync MongoDB (if record exists)
+            certificateService.updateStatus(id, request.getStatus());
+            
+            return ResponseEntity.ok(Map.of("certificateId", id, "status", statusStr));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    private University getEffectiveUniversity(String requestedUniversityId, Object principal) {
+        // 1. Try to get from authenticated principal
+        if (principal instanceof UniversityPrincipal uniPrincipal) {
+            return universityRepository.findById(uniPrincipal.universityId())
+                    .orElseThrow(() -> new IllegalArgumentException("University not found: " + uniPrincipal.universityId()));
+        }
+
+        // 2. Try to get from requested ID (for Super Admin)
+        if (requestedUniversityId != null && !requestedUniversityId.isBlank()) {
+            return universityRepository.findById(requestedUniversityId)
+                    .orElseThrow(() -> new IllegalArgumentException("University not found: " + requestedUniversityId));
+        }
+
+        // 3. Fallback for development: pick the first available university
+        return universityRepository.findAll().stream().findFirst()
+                .orElseThrow(() -> new IllegalStateException("No universities found. Please register a university first."));
     }
 }

@@ -1,22 +1,27 @@
 package com.akash.credential_verification.Controller;
 
+import com.akash.credential_verification.Dto.AuthResponse;
 import com.akash.credential_verification.Dto.LoginRequest;
+import com.akash.credential_verification.Dto.StudentDetailsResponse;
+import com.akash.credential_verification.Dto.StudentLoginRequest;
+import com.akash.credential_verification.Dto.StudentProfileResponse;
+import com.akash.credential_verification.Dto.StudentSignupRequest;
 import com.akash.credential_verification.Dto.SuperAdminRegisterRequest;
+import com.akash.credential_verification.Model.StudentPrincipal;
 import com.akash.credential_verification.Model.User;
-import com.akash.credential_verification.Model.University;
-import com.akash.credential_verification.Repository.UniversityRepository;
+import com.akash.credential_verification.Service.AuthService;
+import com.akash.credential_verification.Service.StudentAuthService;
 import com.akash.credential_verification.Service.UserService;
-import com.akash.credential_verification.Util.JwtUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -25,59 +30,50 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private final UniversityRepository universityRepository;
+    private final AuthService authService;
+    private final StudentAuthService studentAuthService;
     private final UserService userService;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody @Valid LoginRequest request) {
-        String username = request.getUsername();
-        String password = request.getPassword();
+    public ResponseEntity<AuthResponse> login(@RequestBody @Valid LoginRequest req) {
+        return ResponseEntity.ok(authService.login(req));
+    }
 
-        // First try to login as university
-        var uniOpt = universityRepository.findByUsername(username);
-        if (uniOpt.isPresent()) {
-            University uni = uniOpt.get();
-            if (passwordEncoder.matches(password, uni.getPasswordHash())) {
-                String token = jwtUtil.generateToken(uni.getId(), uni.getMspId(), "UNIVERSITY");
-                return ResponseEntity.ok(Map.of(
-                        "token", token,
-                        "universityId", uni.getId(),
-                        "role", "UNIVERSITY"
-                ));
-            }
-        }
+    @PostMapping("/student/signup")
+    public ResponseEntity<AuthResponse> signupStudent(@RequestBody @Valid StudentSignupRequest req) {
+        return ResponseEntity.ok(studentAuthService.signup(req));
+    }
 
-        // Then try to login as super admin / user
-        var userOpt = userService.findByUsername(username);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            if (passwordEncoder.matches(password, user.getPasswordHash())) {
-                String token = jwtUtil.generateToken(user.getId(), user.getRole().name(), user.getRole().name());
-                return ResponseEntity.ok(Map.of(
-                        "token", token,
-                        "userId", user.getId(),
-                        "role", user.getRole().name()
-                ));
-            }
+    @PostMapping("/student/login")
+    public ResponseEntity<AuthResponse> loginStudent(@RequestBody @Valid StudentLoginRequest req) {
+        return ResponseEntity.ok(studentAuthService.login(req.getEmail(), req.getPassword()));
+    }
+
+    @GetMapping("/student/profile")
+    public ResponseEntity<StudentProfileResponse> getStudentProfile(@AuthenticationPrincipal StudentPrincipal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).build();
         }
-        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+        return ResponseEntity.ok(studentAuthService.getProfileById(principal.id()));
+    }
+
+    @GetMapping("/student/details-by-index")
+    public ResponseEntity<StudentDetailsResponse> getStudentDetailsByIndexNo(@RequestParam String indexNo) {
+        if (indexNo == null || indexNo.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(studentAuthService.getDetailsByIndexNo(indexNo));
     }
 
     @PostMapping("/superadmin/register")
-    public ResponseEntity<?> registerSuperAdmin(@RequestBody @Valid SuperAdminRegisterRequest request) {
-        String username = request.getUsername();
-        String password = request.getPassword();
-
-        try {
-            User user = userService.signUpSuperAdmin(username, password);
-            return ResponseEntity.ok(Map.of(
-                    "message", "Super admin registered successfully",
-                    "userId", user.getId()
-            ));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<?> registerSuperAdmin(@RequestBody @Valid SuperAdminRegisterRequest req) {
+        User user = userService.signUpSuperAdmin(req.getUsername(), req.getPassword());
+        Map<String, Object> response = Map.of(
+                "id", user.getId(),
+                "username", user.getUsername(),
+                "role", user.getRole().name(),
+                "createdAt", user.getCreatedAt()
+        );
+        return ResponseEntity.ok(response);
     }
 }

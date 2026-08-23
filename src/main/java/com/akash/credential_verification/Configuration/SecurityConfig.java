@@ -35,7 +35,7 @@ public class SecurityConfig {
                                 ).permitAll()
                                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                                .requestMatchers("/api/auth/login", "/api/auth/superadmin/register").permitAll()
+                                .requestMatchers("/api/auth/login", "/api/auth/superadmin/register", "/api/auth/student/signup", "/api/auth/student/login").permitAll()
                                 .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
                                 .requestMatchers("/api/certificates/blockchain/**").authenticated()
                                 .anyRequest().permitAll()

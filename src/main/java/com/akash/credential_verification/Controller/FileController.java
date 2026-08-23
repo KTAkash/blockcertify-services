@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -74,6 +75,19 @@ public class FileController {
             return ResponseEntity.notFound().build();
         } catch (IOException exception) {
             return ResponseEntity.internalServerError().body(Map.of("error", "Failed to read file"));
+        }
+    }
+
+    @Operation(summary = "Delete a file", description = "Remove a file from IPFS (unpin) and delete metadata from database")
+    @DeleteMapping("/{cid}")
+    public ResponseEntity<?> delete(@PathVariable String cid) {
+        try {
+            fileService.deleteFile(cid);
+            return ResponseEntity.ok(Map.of("message", "File deleted successfully"));
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.notFound().build();
+        } catch (IOException exception) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Failed to delete file"));
         }
     }
 

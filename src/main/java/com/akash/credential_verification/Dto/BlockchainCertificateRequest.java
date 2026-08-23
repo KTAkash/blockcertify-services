@@ -10,20 +10,18 @@ import lombok.NoArgsConstructor;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class CreateCertificateRequest {
+public class BlockchainCertificateRequest {
+
+    @JsonProperty("certificateId")
+    private String certificateId;
 
     @NotBlank(message = "Student ID is required")
     @JsonProperty("studentId")
     private String studentId;
-
-    @NotBlank(message = "Certificate Title is required")
-    @JsonProperty("certificateTitle")
-    private String certificateTitle;
 
     @NotBlank(message = "IPFS CID is required")
     @JsonProperty("cid")

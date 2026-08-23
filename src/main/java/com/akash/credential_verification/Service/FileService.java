@@ -73,6 +73,27 @@ public class FileService {
         return new PreviewFile(resource, contentType, fileName);
     }
 
+    public void deleteFile(String cid) throws IOException {
+        if (cid == null || cid.isBlank()) {
+            throw new IllegalArgumentException("CID must not be empty");
+        }
+
+        FileMetadata metadata = fileMetadataRepository.findFirstByCid(cid)
+                .orElseThrow(() -> new IllegalArgumentException("File not found with CID: " + cid));
+
+        // Unpin from IPFS
+        try {
+            Multihash multihash = Multihash.fromBase58(cid);
+            ipfs.pin.rm(multihash);
+        } catch (Exception e) {
+            // Log warning but continue to delete metadata
+            // Some files might not be pinned or already unpinned, or CID format is slightly off for pin.rm but worked for metadata
+        }
+
+        // Delete metadata
+        fileMetadataRepository.deleteByCid(cid);
+    }
+
     public String getGatewayUrl(String cid) {
         return buildGatewayUrl(cid);
     }
