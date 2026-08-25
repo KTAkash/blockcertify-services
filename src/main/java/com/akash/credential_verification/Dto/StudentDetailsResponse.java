@@ -14,16 +14,7 @@ import java.util.List;
 @AllArgsConstructor
 public class StudentDetailsResponse {
 
-    private String id;
-    private String firstName;
-    private String lastName;
-    private String email;
     private String indexNo;
-    private String mobileNo;
-    private String gender;
-    private String role;
-    private Instant createdAt;
-
     private List<CertificateInfo> certificates;
 
     @Data

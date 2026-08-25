@@ -6,9 +6,11 @@ import com.akash.credential_verification.Dto.StudentDetailsResponse;
 import com.akash.credential_verification.Dto.StudentProfileResponse;
 import com.akash.credential_verification.Dto.StudentSignupRequest;
 import com.akash.credential_verification.Model.Certificate;
+import com.akash.credential_verification.Model.Student;
 import com.akash.credential_verification.Model.StudentAuth;
 import com.akash.credential_verification.Repository.CertificateRepository;
 import com.akash.credential_verification.Repository.StudentAuthRepository;
+import com.akash.credential_verification.Repository.StudentRepository;
 import com.akash.credential_verification.Util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 public class StudentAuthService {
 
     private final StudentAuthRepository studentAuthRepository;
+    private final StudentRepository studentRepository;
     private final CertificateRepository certificateRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
@@ -106,34 +109,26 @@ public class StudentAuthService {
                 .build();
     }
 
-    public StudentDetailsResponse getDetailsByIndexNo(String indexNo) {
-        StudentAuth studentAuth = studentAuthRepository.findByIndexNo(indexNo)
-                .orElseThrow(() -> new IllegalArgumentException("Student not found for index number: " + indexNo));
+    public Optional<StudentDetailsResponse> getDetailsByIndexNo(String indexNo) {
+        return studentRepository.findByIndexNo(indexNo)
+                .map(student -> {
+                    List<Certificate> certificates = certificateRepository.findByStudentId(student.getId());
+                    List<StudentDetailsResponse.CertificateInfo> certInfos = certificates.stream()
+                            .map(cert -> StudentDetailsResponse.CertificateInfo.builder()
+                                    .certificateId(cert.getId())
+                                    .certificateTitle(cert.getCertificateTitle())
+                                    .cid(cert.getCid())
+                                    .hash(cert.getHash())
+                                    .issuedBy(cert.getIssuedBy())
+                                    .status(cert.getStatus() != null ? cert.getStatus().name() : null)
+                                    .issuedAt(cert.getIssuedAt())
+                                    .build())
+                            .collect(Collectors.toList());
 
-        List<Certificate> certificates = certificateRepository.findByStudentId(studentAuth.getId());
-        List<StudentDetailsResponse.CertificateInfo> certInfos = certificates.stream()
-                .map(cert -> StudentDetailsResponse.CertificateInfo.builder()
-                        .certificateId(cert.getId())
-                        .certificateTitle(cert.getCertificateTitle())
-                        .cid(cert.getCid())
-                        .hash(cert.getHash())
-                        .issuedBy(cert.getIssuedBy())
-                        .status(cert.getStatus() != null ? cert.getStatus().name() : null)
-                        .issuedAt(cert.getIssuedAt())
-                        .build())
-                .collect(Collectors.toList());
-
-        return StudentDetailsResponse.builder()
-                .id(studentAuth.getId())
-                .firstName(studentAuth.getFirstName())
-                .lastName(studentAuth.getLastName())
-                .email(studentAuth.getEmail())
-                .indexNo(studentAuth.getIndexNo())
-                .mobileNo(studentAuth.getMobileNo())
-                .gender(studentAuth.getGender())
-                .role(studentAuth.getRole() != null ? studentAuth.getRole().name() : null)
-                .createdAt(studentAuth.getCreatedAt())
-                .certificates(certInfos)
-                .build();
+                    return StudentDetailsResponse.builder()
+                            .indexNo(student.getIndexNo())
+                            .certificates(certInfos)
+                            .build();
+                });
     }
 }

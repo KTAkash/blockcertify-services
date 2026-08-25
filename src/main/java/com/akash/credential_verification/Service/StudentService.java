@@ -13,17 +13,32 @@ import java.util.Optional;
 public class StudentService {
 
     private static final String STUDENT_ID_PREFIX = "STU-";
+    private static final long STARTING_SUFFIX = 101L;
 
     private final StudentRepository studentRepository;
 
     public Student create(Student student) {
         student.setId(generateStudentId());
-        return studentRepository.save(student);
+        return studentRepository.insert(student);
     }
 
     private String generateStudentId() {
-        long count = studentRepository.count();
-        return STUDENT_ID_PREFIX + (101 + count);
+        long maxSuffix = studentRepository.findAll().stream()
+                .map(Student::getId)
+                .filter(id -> id != null && id.startsWith(STUDENT_ID_PREFIX))
+                .map(id -> id.substring(STUDENT_ID_PREFIX.length()))
+                .map(suffix -> {
+                    try {
+                        return Long.parseLong(suffix);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .filter(java.util.Objects::nonNull)
+                .max(Long::compareTo)
+                .orElse(STARTING_SUFFIX - 1);
+
+        return STUDENT_ID_PREFIX + (maxSuffix + 1);
     }
 
     public List<Student> getAll() {

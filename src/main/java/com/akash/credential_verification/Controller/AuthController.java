@@ -62,7 +62,9 @@ public class AuthController {
         if (indexNo == null || indexNo.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(studentAuthService.getDetailsByIndexNo(indexNo));
+        return studentAuthService.getDetailsByIndexNo(indexNo)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/superadmin/register")
