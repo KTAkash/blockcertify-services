@@ -1,5 +1,6 @@
 package com.akash.credential_verification.Controller;
 
+import com.akash.credential_verification.Dto.StudentCertificateStatusResponse;
 import com.akash.credential_verification.Model.Student;
 import com.akash.credential_verification.Service.StudentService;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,11 @@ public class StudentController {
     @GetMapping
     public ResponseEntity<List<Student>> getAll() {
         return ResponseEntity.ok(studentService.getAll());
+    }
+
+    @GetMapping("/certificate-status")
+    public ResponseEntity<List<StudentCertificateStatusResponse>> getAllWithCertificateStatus() {
+        return ResponseEntity.ok(studentService.getAllWithCertificateStatus());
     }
 
     @GetMapping("/{id}")
