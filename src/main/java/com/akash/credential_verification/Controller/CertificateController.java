@@ -93,7 +93,8 @@ public class CertificateController {
             @AuthenticationPrincipal Object principal
     ) {
         try {
-            University university = getEffectiveUniversity(universityId, principal);
+            // For read operations, use any active university's channel since world state is shared
+            University university = getAnyActiveUniversity(universityId, principal);
             return ResponseEntity.ok(fabricCertificateService.getCertificate(university.getId(), id));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -108,7 +109,8 @@ public class CertificateController {
             @AuthenticationPrincipal Object principal
     ) {
         try {
-            University university = getEffectiveUniversity(universityId, principal);
+            // For read operations, use any active university's channel since world state is shared
+            University university = getAnyActiveUniversity(universityId, principal);
             return ResponseEntity.ok(fabricCertificateService.getAllCertificates(university.getId()));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -124,15 +126,16 @@ public class CertificateController {
             @AuthenticationPrincipal Object principal
     ) {
         try {
-            University university = getEffectiveUniversity(request.getUniversityId(), principal);
+            // Use any active university's channel since world state is shared
+            University university = getAnyActiveUniversity(null, principal);
             String statusStr = request.getStatus().name();
-            
+
             // 1. Update Blockchain
             fabricCertificateService.updateCertificateStatus(university.getId(), id, statusStr);
-            
+
             // 2. Sync MongoDB (if record exists)
             certificateService.updateStatus(id, request.getStatus());
-            
+
             return ResponseEntity.ok(Map.of("certificateId", id, "status", statusStr));
         } catch (IllegalArgumentException | IllegalStateException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
@@ -157,5 +160,26 @@ public class CertificateController {
         // 3. Fallback for development: pick the first available university
         return universityRepository.findAll().stream().findFirst()
                 .orElseThrow(() -> new IllegalStateException("No universities found. Please register a university first."));
+    }
+
+    // New method for read operations - more flexible fallback to any active university
+    private University getAnyActiveUniversity(String requestedUniversityId, Object principal) {
+        // 1. Try to get from authenticated principal
+        if (principal instanceof UniversityPrincipal uniPrincipal) {
+            return universityRepository.findById(uniPrincipal.universityId())
+                    .orElseThrow(() -> new IllegalArgumentException("University not found: " + uniPrincipal.universityId()));
+        }
+
+        // 2. Try to get from requested ID (for Super Admin)
+        if (requestedUniversityId != null && !requestedUniversityId.isBlank()) {
+            return universityRepository.findById(requestedUniversityId)
+                    .orElseThrow(() -> new IllegalArgumentException("University not found: " + requestedUniversityId));
+        }
+
+        // 3. For read operations, fallback to ANY active university since world state is shared
+        return universityRepository.findAll().stream()
+                .filter(University::isActive)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No active universities found. Please register and activate a university first."));
     }
 }

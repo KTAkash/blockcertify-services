@@ -19,6 +19,24 @@ public class UniversityService {
 
 
     public University register(RegisterUniversityRequest req) {
+        if (req.getUsername() == null || req.getUsername().isBlank()) {
+            throw new IllegalArgumentException("Field 'username' is required");
+        }
+        if (req.getPassword() == null || req.getPassword().isBlank()) {
+            throw new IllegalArgumentException("Field 'password' is required");
+        }
+        if (req.getName() == null || req.getName().isBlank()) {
+            throw new IllegalArgumentException("Field 'name' is required");
+        }
+        if (req.getMspId() == null || req.getMspId().isBlank()) {
+            throw new IllegalArgumentException("Field 'mspId' is required");
+        }
+        if (req.getPrivateKey() == null || req.getPrivateKey().isBlank()) {
+            throw new IllegalArgumentException("Field 'privateKey' is required");
+        }
+        if (req.getCertPem() == null || req.getCertPem().isBlank()) {
+            throw new IllegalArgumentException("Field 'certPem' is required");
+        }
         if (repo.findByUsername(req.getUsername()).isPresent()) {
             throw new IllegalArgumentException("Username already exists");
         }

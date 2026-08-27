@@ -15,9 +15,6 @@ import jakarta.validation.constraints.NotNull;
 @Builder
 public class UpdateBlockchainStatusRequest {
 
-    @JsonProperty("universityId")
-    private String universityId;
-
     @NotNull(message = "Status is required")
     @JsonProperty("status")
     private CertificateStatus status;
