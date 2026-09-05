@@ -14,6 +14,7 @@ import com.akash.credential_verification.Service.CertificateService;
 import com.akash.credential_verification.Service.FabricCertificateService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -68,6 +69,13 @@ public class CertificateController {
             if (certificateId == null || certificateId.isBlank()) {
                 certificateId = UUID.randomUUID().toString();
             }
+            
+            // Check for duplicate certificate on blockchain
+            if (fabricCertificateService.certificateExists(university.getId(), certificateId)) {
+                return ResponseEntity.status(HttpStatus.CONFLICT)
+                        .body(Map.of("error", "Certificate already exists on blockchain: " + certificateId));
+            }
+            
             String resultId = fabricCertificateService.createCertificate(
                     university.getId(),
                     certificateId,
@@ -145,38 +153,31 @@ public class CertificateController {
     }
 
     private University getEffectiveUniversity(String requestedUniversityId, Object principal) {
-        // 1. Try to get from authenticated principal
         if (principal instanceof UniversityPrincipal uniPrincipal) {
             return universityRepository.findById(uniPrincipal.universityId())
                     .orElseThrow(() -> new IllegalArgumentException("University not found: " + uniPrincipal.universityId()));
         }
 
-        // 2. Try to get from requested ID (for Super Admin)
         if (requestedUniversityId != null && !requestedUniversityId.isBlank()) {
             return universityRepository.findById(requestedUniversityId)
                     .orElseThrow(() -> new IllegalArgumentException("University not found: " + requestedUniversityId));
         }
 
-        // 3. Fallback for development: pick the first available university
         return universityRepository.findAll().stream().findFirst()
                 .orElseThrow(() -> new IllegalStateException("No universities found. Please register a university first."));
     }
 
-    // New method for read operations - more flexible fallback to any active university
     private University getAnyActiveUniversity(String requestedUniversityId, Object principal) {
-        // 1. Try to get from authenticated principal
         if (principal instanceof UniversityPrincipal uniPrincipal) {
             return universityRepository.findById(uniPrincipal.universityId())
                     .orElseThrow(() -> new IllegalArgumentException("University not found: " + uniPrincipal.universityId()));
         }
 
-        // 2. Try to get from requested ID (for Super Admin)
         if (requestedUniversityId != null && !requestedUniversityId.isBlank()) {
             return universityRepository.findById(requestedUniversityId)
                     .orElseThrow(() -> new IllegalArgumentException("University not found: " + requestedUniversityId));
         }
 
-        // 3. For read operations, fallback to ANY active university since world state is shared
         return universityRepository.findAll().stream()
                 .filter(University::isActive)
                 .findFirst()

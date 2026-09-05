@@ -20,16 +20,21 @@ public class JwtUtil {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    @Value("${jwt.expiration.student}")
+    private long studentExpiration;
+
     private Key key() {
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(String subject, String mspIdOrRole, String role) {
+        long tokenExpiration = "STUDENT".equals(role) ? studentExpiration : expiration;
+        
         var builder = Jwts.builder()
                 .setSubject(subject)
                 .claim("role", role)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + expiration));
+                .setExpiration(new Date(System.currentTimeMillis() + tokenExpiration));
         
         if ("UNIVERSITY".equals(role)) {
             builder.claim("mspId", mspIdOrRole);
